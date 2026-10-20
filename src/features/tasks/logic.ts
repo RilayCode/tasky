@@ -133,3 +133,14 @@ export function groupTasksByDay(tasks: readonly Task[], today: DateKey): TaskSec
     .sort(([a], [b]) => sectionRank(a).localeCompare(sectionRank(b)))
     .map(([key, data]) => ({ key, title: sectionTitle(key, today), data }));
 }
+
+// Libellé court d'échéance pour une ligne de liste. showDay : afficher le jour
+// (inutile quand la liste est déjà regroupée par jour).
+export function dueLabel(task: Task, today: DateKey, showDay: boolean): string | null {
+  if (task.dueDate === null) return null;
+  const day = formatRelativeDay(task.dueDate, today);
+  const parts = isOverdue(task, today) || showDay ? [day, task.dueTime] : [task.dueTime];
+  const text = parts.filter(Boolean).join(' · ');
+  if (isOverdue(task, today)) return `En retard · ${text}`;
+  return text || null;
+}

@@ -1,16 +1,7 @@
 import { createContext, use, useState, type ReactNode } from 'react';
-import { useColorScheme } from 'react-native';
+import { useColorScheme, type TextStyle } from 'react-native';
 
-import {
-  buildTypography,
-  colors,
-  displayFonts,
-  type ColorScheme,
-  type ColorTokens,
-  type DisplayFontKey,
-  type TextVariant,
-} from './tokens';
-import type { TextStyle } from 'react-native';
+import { colors, typography, type ColorScheme, type ColorTokens, type TextVariant } from './tokens';
 
 export type ThemePreference = 'system' | 'light' | 'dark';
 
@@ -20,9 +11,6 @@ interface ThemeContextValue {
   scheme: ColorScheme;
   colors: ColorTokens;
   typography: Record<TextVariant, TextStyle>;
-  // Temporaire (phase 2) : sert à comparer les polices d'affichage dans le labo.
-  displayFont: DisplayFontKey;
-  setDisplayFont: (font: DisplayFontKey) => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -30,24 +18,30 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 interface ThemeProviderProps {
   children: ReactNode;
   initialPreference?: ThemePreference;
+  // Appelé à chaque changement, pour enregistrer le choix (voir features/settings).
+  onPreferenceChange?: (preference: ThemePreference) => void;
 }
 
-export function ThemeProvider({ children, initialPreference = 'system' }: ThemeProviderProps) {
+export function ThemeProvider({
+  children,
+  initialPreference = 'system',
+  onPreferenceChange,
+}: ThemeProviderProps) {
   const systemScheme = useColorScheme();
-  const [preference, setPreference] = useState<ThemePreference>(initialPreference);
-  const [displayFont, setDisplayFont] = useState<DisplayFontKey>('instrument');
+  const [preference, setPreferenceState] = useState<ThemePreference>(initialPreference);
 
   const scheme: ColorScheme =
     preference === 'system' ? (systemScheme === 'dark' ? 'dark' : 'light') : preference;
 
   const value: ThemeContextValue = {
     preference,
-    setPreference,
+    setPreference: (next) => {
+      setPreferenceState(next);
+      onPreferenceChange?.(next);
+    },
     scheme,
     colors: colors[scheme],
-    typography: buildTypography(displayFonts[displayFont]),
-    displayFont,
-    setDisplayFont,
+    typography,
   };
 
   return <ThemeContext value={value}>{children}</ThemeContext>;

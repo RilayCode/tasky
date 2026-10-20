@@ -12,7 +12,10 @@ import { useTheme } from '@/theme/ThemeProvider';
 import { motion, radius, spacing, touchTarget } from '@/theme/tokens';
 
 interface TextFieldProps
-  extends Pick<TextInputProps, 'value' | 'onChangeText' | 'placeholder' | 'multiline' | 'maxLength'> {
+  extends Pick<
+    TextInputProps,
+    'value' | 'onChangeText' | 'placeholder' | 'multiline' | 'maxLength' | 'autoFocus' | 'returnKeyType'
+  > {
   label: string;
   error?: string;
   hint?: string;

@@ -19,6 +19,7 @@ const palette = {
   moss: '#3A3D35',
   mossStrong: '#74786C',
   coral: '#EE8A7A',
+  charcoalHigh: '#33362F',
 } as const;
 
 export interface ColorTokens {
@@ -39,6 +40,11 @@ export interface ColorTokens {
   danger: string;
   onDanger: string;
   ripple: string;
+  // Toast : surface inversée par rapport au fond, pour se détacher sans ombre.
+  inverseSurface: string;
+  onInverseSurface: string;
+  inverseAction: string;
+  scrim: string;
 }
 
 export type ColorScheme = 'light' | 'dark';
@@ -65,6 +71,10 @@ export const colors: Record<ColorScheme, ColorTokens> = {
     danger: palette.brick,
     onDanger: palette.white,
     ripple: 'rgba(23, 23, 23, 0.08)',
+    inverseSurface: palette.ink,
+    onInverseSurface: palette.ivory,
+    inverseAction: palette.chartreuse,
+    scrim: 'rgba(23, 23, 23, 0.45)',
   },
   dark: {
     background: palette.charcoal,
@@ -84,6 +94,10 @@ export const colors: Record<ColorScheme, ColorTokens> = {
     danger: palette.coral,
     onDanger: palette.charcoal,
     ripple: 'rgba(243, 243, 234, 0.12)',
+    inverseSurface: palette.charcoalHigh,
+    onInverseSurface: palette.paper,
+    inverseAction: palette.chartreuse,
+    scrim: 'rgba(0, 0, 0, 0.6)',
   },
 };
 
@@ -120,36 +134,11 @@ export const uiFonts = {
   semiBold: 'Inter_600SemiBold',
 } as const;
 
-export interface DisplayFont {
-  family: string;
-  label: string;
-  // Chaque police a sa propre « chasse » : on compense pour garder un rendu équilibré.
-  letterSpacing: number;
-  sizeScale: number;
-}
-
-export type DisplayFontKey = 'instrument' | 'bricolage' | 'space';
-
-export const displayFonts: Record<DisplayFontKey, DisplayFont> = {
-  instrument: {
-    family: 'InstrumentSerif_400Regular',
-    label: 'Instrument',
-    letterSpacing: -0.4,
-    sizeScale: 1.14,
-  },
-  bricolage: {
-    family: 'BricolageGrotesque_600SemiBold',
-    label: 'Bricolage',
-    letterSpacing: -1,
-    sizeScale: 1,
-  },
-  space: {
-    family: 'SpaceGrotesk_600SemiBold',
-    label: 'Space',
-    letterSpacing: -1.2,
-    sizeScale: 0.98,
-  },
-};
+// Police d'affichage retenue (phase 2) : Bricolage Grotesque, pour les titres et les chiffres.
+export const displayFont = {
+  family: 'BricolageGrotesque_600SemiBold',
+  letterSpacing: -1,
+} as const;
 
 export type TextVariant =
   | 'numeral'
@@ -162,12 +151,12 @@ export type TextVariant =
   | 'eyebrow';
 
 // Échelle typographique fermée : toute nouvelle taille passe par ici.
-export function buildTypography(display: DisplayFont): Record<TextVariant, TextStyle> {
+function buildTypography(): Record<TextVariant, TextStyle> {
   const displayStyle = (size: number, lineHeight: number): TextStyle => ({
-    fontFamily: display.family,
-    fontSize: Math.round(size * display.sizeScale),
-    lineHeight: Math.round(lineHeight * display.sizeScale),
-    letterSpacing: display.letterSpacing,
+    fontFamily: displayFont.family,
+    fontSize: size,
+    lineHeight,
+    letterSpacing: displayFont.letterSpacing,
   });
 
   return {
@@ -192,3 +181,5 @@ export function buildTypography(display: DisplayFont): Record<TextVariant, TextS
     },
   };
 }
+
+export const typography = buildTypography();

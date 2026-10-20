@@ -18,6 +18,8 @@ const requiredPairs: Pair[] = [
   ['progressFill', 'background', 3],
   ['checkFill', 'background', 3],
   ['checkMark', 'checkFill', 3],
+  ['onInverseSurface', 'inverseSurface', 4.5],
+  ['inverseAction', 'inverseSurface', 4.5],
 ];
 
 describe('contrastRatio', () => {

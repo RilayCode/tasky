@@ -1,5 +1,6 @@
 import {
   computeProgress,
+  dueLabel,
   filterByStatus,
   groupTasksByDay,
   isOverdue,
@@ -116,5 +117,17 @@ describe('groupTasksByDay', () => {
       TODAY,
     );
     expect(sections.map((section) => section.key)).toEqual(['2026-10-17']);
+  });
+});
+
+describe('dueLabel', () => {
+  it('formule l’échéance selon le contexte', () => {
+    expect(dueLabel(makeTask({ dueTime: '11:00' }), TODAY, false)).toBe('11:00');
+    expect(dueLabel(makeTask({ dueTime: null }), TODAY, false)).toBeNull();
+    expect(dueLabel(makeTask({ dueDate: '2026-10-21', dueTime: '09:00' }), TODAY, true)).toBe(
+      'Demain · 09:00',
+    );
+    expect(dueLabel(makeTask({ dueDate: '2026-10-19' }), TODAY, false)).toBe('En retard · Hier');
+    expect(dueLabel(makeTask({ dueDate: null }), TODAY, true)).toBeNull();
   });
 });

@@ -2,23 +2,33 @@ import { Pressable, StyleSheet } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
 import { AppText, type TextTone } from '@/components/ui/AppText';
+import { Icon, type IconName } from '@/components/ui/Icon';
 import { useTheme } from '@/theme/ThemeProvider';
-import { motion, radius, spacing, touchTarget } from '@/theme/tokens';
+import { motion, radius, spacing, touchTarget, type ColorTokens } from '@/theme/tokens';
 
-export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
+export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'dangerGhost';
 
 interface ButtonProps {
   label: string;
   onPress: () => void;
   variant?: ButtonVariant;
+  icon?: IconName;
   disabled?: boolean;
   accessibilityHint?: string;
+}
+
+interface Appearance {
+  backgroundColor: string;
+  borderColor: string;
+  tone: TextTone;
+  iconColor: keyof ColorTokens;
 }
 
 export function Button({
   label,
   onPress,
   variant = 'primary',
+  icon,
   disabled = false,
   accessibilityHint,
 }: ButtonProps) {
@@ -26,14 +36,37 @@ export function Button({
   const scale = useSharedValue(1);
   const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
-  const appearances: Record<
-    ButtonVariant,
-    { backgroundColor: string; borderColor: string; tone: TextTone }
-  > = {
-    primary: { backgroundColor: colors.accent, borderColor: colors.accent, tone: 'onAccent' },
-    secondary: { backgroundColor: 'transparent', borderColor: colors.borderStrong, tone: 'primary' },
-    ghost: { backgroundColor: 'transparent', borderColor: 'transparent', tone: 'primary' },
-    danger: { backgroundColor: colors.danger, borderColor: colors.danger, tone: 'onDanger' },
+  const appearances: Record<ButtonVariant, Appearance> = {
+    primary: {
+      backgroundColor: colors.accent,
+      borderColor: colors.accent,
+      tone: 'onAccent',
+      iconColor: 'onAccent',
+    },
+    secondary: {
+      backgroundColor: 'transparent',
+      borderColor: colors.borderStrong,
+      tone: 'primary',
+      iconColor: 'textPrimary',
+    },
+    ghost: {
+      backgroundColor: 'transparent',
+      borderColor: 'transparent',
+      tone: 'primary',
+      iconColor: 'textPrimary',
+    },
+    danger: {
+      backgroundColor: colors.danger,
+      borderColor: colors.danger,
+      tone: 'onDanger',
+      iconColor: 'onDanger',
+    },
+    dangerGhost: {
+      backgroundColor: 'transparent',
+      borderColor: 'transparent',
+      tone: 'danger',
+      iconColor: 'danger',
+    },
   };
   const appearance = appearances[variant];
 
@@ -60,6 +93,7 @@ export function Button({
         }}
         android_ripple={{ color: colors.ripple }}
         style={styles.pressable}>
+        {icon && <Icon name={icon} size={18} color={appearance.iconColor} />}
         <AppText variant="bodyStrong" tone={appearance.tone}>
           {label}
         </AppText>
@@ -76,8 +110,10 @@ const styles = StyleSheet.create({
   },
   pressable: {
     minHeight: touchTarget + 4,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: spacing.sm,
     paddingHorizontal: spacing.xl,
   },
   disabled: {
