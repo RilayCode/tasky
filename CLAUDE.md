@@ -1,7 +1,7 @@
 # CLAUDE.md — Tasky
 
 > Document de référence du projet. À lire en entier avant toute session de développement.
-> Dernière mise à jour : 2026-10-20 (phase 2 — design system livré, en attente de validation sur appareil).
+> Dernière mise à jour : 2026-10-20 (phases 3 à 11 livrées — app complète, en attente de validation sur appareil ; phase 12 prête à lancer).
 
 ---
 
@@ -9,10 +9,10 @@
 
 | Élément | État |
 |---|---|
-| Phase en cours | **Phase 2 — Thème et primitives UI** : livrée, **validation sur téléphone en attente** (choix de la police d'affichage inclus) |
-| Code applicatif | Thème (tokens clair/sombre, polices), 7 primitives UI animées, écran provisoire « Labo de design » (`src/lab/`) affiché à l'accueil |
+| Phase en cours | **Phases 3 → 11 livrées d'un bloc** (à la demande du porteur) : app complète. **Validation sur téléphone en attente.** Phase 12 (APK) : configuration prête, build à lancer par le porteur (compte Expo requis) |
+| Code applicatif | App complète : Aujourd'hui, Tâches (recherche + filtres), création/modification, détail, paramètres, persistance locale, thème persistant, toasts « Annuler », confirmations, icône Tasky |
 | Dépôt git | GitHub `RilayCode/tasky`, branche `main` |
-| Design | Direction révisée (§D) **adoptée** ; elle sera finalisée directement en code (pas de nouvelle maquette Figma) |
+| Design | Direction révisée (§D) **adoptée et implémentée en code** ; police d'affichage : **Bricolage Grotesque** |
 | Décisions ouvertes | Voir §I |
 
 Objectif exprimé par le porteur du projet : une app **fluide**, qui sert aussi de terrain d'apprentissage pour expérimenter les techniques du développement mobile (animations, gestes, persistance, thèmes, build).
@@ -95,6 +95,16 @@ Versions **vérifiées le 2026-10-20** via `npm view` (registre npm) et le templ
 - **Polices** : fichiers TTF copiés dans `assets/fonts/` (licences OFL incluses), chargés au démarrage par `useFonts` pendant l'écran de démarrage. Aucune dépendance npm de police ajoutée.
 - **Contrôle visuel sans téléphone** : `EXPO_OFFLINE=1 npx expo export --platform web` puis captures Playwright (Chromium préinstallé) à 390×844 en clair et sombre. Utile pour repérer un défaut de mise en page ; **ne remplace pas** le test Android (polices, ombres, ripple, performances diffèrent).
 
+### Constats des phases 3 à 11
+- **`expo-asset` doit être une dépendance directe** : `expo-font` l'importe sans le déclarer ; npm l'avait laissé dans `node_modules/expo/node_modules`, introuvable pour Jest (Metro s'en sortait grâce à la configuration Expo). Installé via `npx expo install expo-asset`.
+- **Onglets** : `Tabs` s'importe depuis `expo-router/js-tabs` (l'export racine est déprécié). La barre personnalisée reçoit `{ state, descriptors, emitter, navigateToTab }` (pas de `navigation` dans cette version) — reproduire la logique de `BottomTabBar` de la bibliothèque.
+- **Tests d'intégration** : `renderRouter('./src/app', { initialUrl: '/' })` depuis `expo-router/testing-library` monte la vraie navigation. `jest.setup.ts` simule AsyncStorage (mock officiel) et `expo-font` (pas de fichiers de police dans Jest).
+- **React Compiler + tests** : ne pas réassigner une variable externe dans un composant de test (`react-hooks/globals`) ; utiliser `renderHook`.
+- **Libellés accessibles uniques** : deux boutons « Effacer la recherche » à l'écran → TalkBack ambigu (et `getByRole` échoue). Les tests de parcours servent aussi d'audit d'accessibilité.
+- **Toast en haut d'écran** : en bas, il masquait le bouton flottant et les actions du détail.
+- **Icône** : générée par script Python/PIL à partir de Bricolage (« T » encre + point chartreuse sur ivoire), icône adaptative Android avec motif dans la zone sûre.
+- **Clavier Android** : `KeyboardAvoidingView` (`height` sur Android, `padding` sur iOS) dans le formulaire. **À vérifier sur appareil** (edge-to-edge) : le bouton « Créer la tâche » doit rester visible clavier ouvert.
+
 ### Environnement cloud de Claude Code (limites connues)
 - Le proxy bloque `api.expo.dev` / `exp.host` / React Native Directory. Lancer les commandes Expo avec **`EXPO_OFFLINE=1`** (ex. `EXPO_OFFLINE=1 npx expo install <pkg>`) : les versions sont alors lues dans `node_modules/expo/bundledNativeModules.json`.
 - `npx expo-doctor` : 2 vérifications sur 20 échouent **uniquement faute de réseau** (schéma `app.json`, React Native Directory). À relancer sur une machine connectée.
@@ -128,7 +138,7 @@ Versions **vérifiées le 2026-10-20** via `npm view` (registre npm) et le templ
 ### Outils de test et de débogage
 - `npx tsc --noEmit` — vérification des types.
 - `npx expo lint` — ESLint (configuration Expo).
-- `npx jest` (preset `jest-expo`) — tests unitaires et de composants.
+- `npx jest` (preset `jest-expo`) — tests unitaires, de composants et parcours complets (74 tests à la phase 11).
 - `npx expo-doctor` — cohérence des versions.
 - Débogage : React Native DevTools (touche `j` dans le terminal `npx expo start`), menu développeur sur l'appareil (secouer le téléphone).
 - Appareil réel Android via Expo Go ou development build (voir §F).
@@ -150,19 +160,22 @@ Versions **vérifiées le 2026-10-20** via `npm view` (registre npm) et le templ
 └── src/
     ├── app/              ROUTES uniquement (Expo Router). Fichiers fins : assemblent des composants.
     │   ├── _layout.tsx           providers (thème, tâches), stack racine
-    │   ├── (tabs)/_layout.tsx    barre d'onglets
+    │   ├── (tabs)/_layout.tsx    onglets (expo-router/js-tabs) + barre personnalisée (components/navigation/TabBar)
     │   ├── (tabs)/index.tsx      Aujourd'hui
     │   ├── (tabs)/tasks.tsx      Toutes les tâches
     │   ├── (tabs)/settings.tsx   Paramètres
     │   └── task/
     │       ├── new.tsx           Création (modale)
-    │       ├── [id].tsx          Détail
+    │       ├── [id]/index.tsx    Détail
     │       └── [id]/edit.tsx     Modification
     ├── components/
     │   ├── ui/           primitives génériques sans logique métier :
-    │   │                 AppText, Button, TextField, SegmentedControl, Checkbox,
-    │   │                 ProgressBar, ListDivider, BottomSheet, Toast, Screen
-    │   └── tasks/        composants métier : TaskRow, TaskList, TaskForm, EmptyState
+    │   │                 AppText, Button, IconButton, Fab, Icon, Chip, TextField, SearchField,
+    │   │                 SegmentedControl, Checkbox, ProgressBar, ListDivider, Screen, ScreenHeader,
+    │   │                 ConfirmSheet (feuille modale), ToastProvider (+ useToast)
+    │   ├── navigation/   TabBar (pastille animée)
+    │   └── tasks/        composants métier : TaskRow, ProgressHero, SectionHeader, EmptyState,
+    │                     TaskForm, DueDateField (sélecteurs natifs date/heure)
     ├── features/
     │   ├── tasks/
     │   │   ├── types.ts        Task, Priority, TaskStatus, TaskInput
@@ -172,18 +185,22 @@ Versions **vérifiées le 2026-10-20** via `npm view` (registre npm) et le templ
     │   │   ├── repository.ts   lecture/écriture stockage + migrations
     │   │   ├── TasksProvider.tsx  contexte + hooks (useTasks, useTask(id))
     │   │   └── __tests__/
-    │   └── settings/           même découpage, plus léger
-    ├── __tests__/        tests des écrans (jamais dans src/app : chaque fichier y devient une route)
-    ├── lab/              TEMPORAIRE (phase 2) : écran « Labo de design », à supprimer en phase 5-6
-    ├── test/             utilitaires de test (renderWithTheme : thème + zones sûres)
+    │   └── settings/repository.ts  préférence de thème (non critique : repli sur « auto »)
+    ├── __tests__/        parcours complets (renderRouter) — jamais dans src/app : chaque fichier y devient une route
+    ├── screens/          contenu des écrans (TodayScreen, TasksScreen, TaskDetailScreen, TaskFormScreen,
+    │                     SettingsScreen, LoadErrorScreen) ; les fichiers de src/app ne font que les monter
+    ├── hooks/            useToday (date du jour, recalculée à minuit / retour au premier plan),
+    │                     useCompleteTask (cocher + toast « Annuler »)
+    ├── test/             utilitaires de test (renderWithTheme, taskFactory)
     ├── theme/
-    │   ├── tokens.ts      couleurs sémantiques clair/sombre, typo, espacements, rayons, mouvement (source unique)
+    │   ├── tokens.ts      couleurs sémantiques clair/sombre, typographie, espacements, rayons, mouvement (source unique)
     │   ├── fonts.ts       fichiers de police chargés au démarrage
     │   ├── contrast.ts    calcul de contraste WCAG (utilisé par les tests)
     │   ├── ThemeProvider.tsx  contexte + hook useTheme (préférence auto/clair/sombre)
     └── lib/
         ├── storage.ts     petit adaptateur autour d'AsyncStorage (JSON + erreurs)
-        └── date.ts        formatage FR, « aujourd'hui », comparaisons de jours
+        ├── date.ts        DateKey YYYY-MM-DD, heures HH:mm, formatage français écrit à la main
+        └── id.ts          identifiant local unique
 ```
 
 ### Séparation des responsabilités
@@ -193,22 +210,27 @@ Versions **vérifiées le 2026-10-20** via `npm view` (registre npm) et le templ
 
 Flux : Écran → hook (`useTasks`) → dispatch d'une action → reducer pur → nouvel état → repository écrit sur le disque.
 
-### Modèle de données (proposition, à valider en phase 3)
+### Modèle de données (implémenté en phase 3, `src/features/tasks/types.ts`)
 ```ts
 type Priority = 'low' | 'normal' | 'high';
 
 interface Task {
-  id: string;              // généré localement
-  title: string;           // 1 à 120 caractères après trim
-  description: string | null;
-  priority: Priority;      // 'normal' par défaut
-  dueAt: string | null;    // ISO 8601 ; obligatoire ou non → décision ouverte (§I)
-  completedAt: string | null; // null = à faire
-  createdAt: string;
-  updatedAt: string;
+  id: string;                 // généré localement (lib/id.ts)
+  title: string;              // 1 à 120 caractères après trim
+  description: string | null; // ≤ 1000 caractères ; vide → null
+  priority: Priority;         // 'normal' par défaut
+  dueDate: string | null;     // date LOCALE 'YYYY-MM-DD', facultative
+  dueTime: string | null;     // 'HH:mm', facultative, interdite sans dueDate
+  completedAt: string | null; // ISO 8601 ; null = à faire
+  createdAt: string;          // ISO 8601
+  updatedAt: string;          // ISO 8601
 }
 ```
-Le statut se **dérive** de `completedAt` (pas de champ `status` dupliqué).
+- Le statut se **dérive** de `completedAt` (pas de champ `status` dupliqué).
+- **Pourquoi pas un `dueAt` ISO** : date et heure sont facultatives et une date « du 20 » ne doit jamais glisser au 19 à cause du fuseau horaire. Les `DateKey` se comparent comme des chaînes.
+- **« Aujourd'hui »** = échéance du jour + retards non terminés + retards terminés *aujourd'hui* (sinon la progression reculerait au moment de cocher). Les tâches sans date n'y apparaissent pas ; le formulaire propose « Aujourd'hui » par défaut.
+- **Tri** : à faire avant terminées, retards d'abord, puis date, heure (sans heure en dernier), priorité, ancienneté.
+- Reducer pur : identifiants et horodatages sont fournis par le provider, jamais générés dans le reducer.
 
 ### Conventions composants et types
 - Composants fonctionnels uniquement, un composant exporté par fichier, nom de fichier = nom du composant (`TaskRow.tsx`).
@@ -297,19 +319,19 @@ Garder « l'éditorial du quotidien », le rendre plus personnel et plus fonctio
 - **Thème** : Automatique (par défaut) / Clair / Sombre.
 
 ### Implémentation actuelle (phase 2, `src/theme/tokens.ts`)
-- **Couleurs sémantiques** : `background`, `surface`, `textPrimary`, `textSecondary`, `borderSubtle` (filets décoratifs), `borderStrong` (contour des champs, ≥ 3:1), `accent`/`onAccent` (chartreuse : action principale, accomplissement), `selected`/`onSelected`, `progressFill`/`progressTrack`, `checkFill`/`checkMark`, `danger`/`onDanger`, `ripple`.
+- **Couleurs sémantiques** (+ `inverseSurface`/`onInverseSurface`/`inverseAction` pour le toast, `scrim` pour le voile des feuilles) : `background`, `surface`, `textPrimary`, `textSecondary`, `borderSubtle` (filets décoratifs), `borderStrong` (contour des champs, ≥ 3:1), `accent`/`onAccent` (chartreuse : action principale, accomplissement), `selected`/`onSelected`, `progressFill`/`progressTrack`, `checkFill`/`checkMark`, `danger`/`onDanger`, `ripple`.
 - **Décision clé** : en clair, la jauge et la case cochée sont en **encre** (le chartreuse ne fait que 1,18:1 sur ivoire) ; la coche est chartreuse. En sombre, jauge et case sont **chartreuse**. Le chartreuse en clair reste réservé au bouton principal et au badge « Journée accomplie ».
-- **Contrastes testés automatiquement** (`src/theme/__tests__/contrast.test.ts`) : 13 paires × 2 thèmes. Toute modification de couleur doit garder ce test vert.
+- **Contrastes testés automatiquement** (`src/theme/__tests__/contrast.test.ts`) : 15 paires × 2 thèmes. Toute modification de couleur doit garder ce test vert.
 - **Typographie** : 8 styles (`numeral`, `display`, `title`, `headline`, `body`, `bodyStrong`, `meta`, `eyebrow`). Interface en Inter (400/500/600) ; `numeral`/`display`/`title` dans la police d'affichage. Chiffres tabulaires pour `numeral` et `meta`.
-- **Police d'affichage** : 3 candidates comparables en direct dans le labo — Instrument Serif (éditorial, sérif), Bricolage Grotesque (grotesque expressive), Space Grotesk (géométrique). **Choix en attente du porteur** ; une fois choisie, retirer les deux autres fichiers et le sélecteur temporaire (`displayFont` du ThemeProvider).
+- **Police d'affichage** : **Bricolage Grotesque** (choisie sur téléphone parmi Instrument Serif, Bricolage et Space Grotesk ; les deux autres fichiers et le labo ont été retirés).
 - **Espacements** 4/8/12/16/24/32/48 ; **rayons** 8/12/16/pill ; **cible tactile** 48 ; **mouvement** : 150/250/400 ms + ressort (damping 18, stiffness 220). Les animations Reanimated respectent par défaut le réglage système « réduire les animations ».
-- **Primitives** (`src/components/ui/`) : `AppText`, `Button` (primary/secondary/ghost/danger, ressort à l'appui + ripple Android), `Checkbox` (animation ressort, coche dessinée sans icône), `ProgressBar` (segments ≤ 7, sinon barre continue ; remplissage animé en cascade), `SegmentedControl` (indicateur glissant), `TextField` (bordure animée au focus, état d'erreur), `Screen` (zones sûres + défilement), `ListDivider`.
+- **Primitives** (`src/components/ui/`) — voir aussi l'arborescence §C : `AppText`, `Button` (primary/secondary/ghost/danger/dangerGhost, icône facultative, ressort à l'appui + ripple Android), `Checkbox` (animation ressort, coche dessinée sans icône), `ProgressBar` (segments ≤ 7, sinon barre continue ; remplissage animé en cascade), `SegmentedControl` (indicateur glissant), `TextField` (bordure animée au focus, état d'erreur), `Screen` (zones sûres + défilement), `ListDivider`.
 
 ### Principes de cohérence visuelle
 - Toutes les valeurs proviennent de `src/theme/tokens.ts`. Aucune couleur, taille ou espacement en dur dans les composants.
 - Tokens **sémantiques** (`text.primary`, `surface.field`, `action.primary`, `feedback.danger`…) mappés sur une palette brute ; les composants n'utilisent que les sémantiques.
 - Chaque token a une valeur clair **et** une valeur sombre ; le thème sombre n'est pas une inversion automatique.
-- Échelle d'espacement fermée (4, 8, 12, 16, 24, 32, 48) ; échelle typographique fermée (≤ 7 styles).
+- Échelle d'espacement fermée (4, 8, 12, 16, 24, 32, 48) ; échelle typographique fermée (8 styles, voir ci-dessus).
 - Toute nouvelle variante de composant est d'abord justifiée, puis ajoutée au design system.
 
 ---
@@ -412,70 +434,77 @@ Chaque phase est courte, livrable et testable. Ne pas anticiper la phase suivant
 - **Tests** : vérifications automatiques ; lancement sur appareil.
 - **Prérequis** : téléphone Android ; Expo Go installé ou plan B dev build ; décision sur l'identifiant de package Android (ex. `com.<vous>.tasky`). Note : `create-expo-app` dans un dossier non vide peut refuser de s'exécuter → générer dans un sous-dossier temporaire puis déplacer, en conservant `CLAUDE.md`.
 
-### Phase 2 — Thème et primitives UI *(livrée — validation sur téléphone en attente)*
+### Phase 2 — Thème et primitives UI *(terminée — police Bricolage validée sur téléphone)*
 - **Objectif** : le design system validé existe en code.
 - **Livrables** : `theme/tokens.ts` (clair + sombre), `ThemeProvider` (automatique / clair / sombre, non persisté pour l'instant), polices chargées, primitives `AppText`, `Button`, `Screen`, `TextField`, `SegmentedControl`, `Checkbox`, `ProgressBar`. Un écran de démonstration temporaire.
 - **Critères** : bascule clair/sombre fonctionnelle ; aucune valeur en dur ; contrastes conformes à §E.
 - **Tests** : tests de rendu des primitives (états), vérification visuelle sur appareil dans les deux thèmes.
 - **Prérequis** : phase 0 validée (palette, polices).
 
-### Phase 3 — Domaine « tâches » (sans UI)
+### Phase 3 — Domaine « tâches » (sans UI) *(livrée)*
 - **Objectif** : toute la logique métier, pure et testée.
 - **Livrables** : `types.ts`, `logic.ts`, `validation.ts`, `reducer.ts` + tests.
 - **Critères** : couverture des cas limites (titre vide/espaces, tâche sans échéance, changement de jour, fuseau horaire local).
 - **Tests** : Jest uniquement.
 - **Prérequis** : décisions sur l'échéance obligatoire/heure facultative.
 
-### Phase 4 — Persistance locale
+### Phase 4 — Persistance locale *(livrée)*
 - **Objectif** : les données survivent au redémarrage.
 - **Livrables** : `lib/storage.ts`, `repository.ts` (versionné, gestion de corruption), `TasksProvider` + hooks, `SettingsProvider` (thème persisté).
 - **Critères** : relecture fidèle ; premier lancement propre ; erreur de lecture visible et non destructrice.
 - **Tests** : tests de persistance (mock) + test manuel fermeture/réouverture.
 - **Prérequis** : phase 3.
 
-### Phase 5 — Navigation et squelette des écrans
+### Phase 5 — Navigation et squelette des écrans *(livrée)*
 - **Objectif** : naviguer entre tous les écrans (contenu provisoire).
 - **Livrables** : onglets, pile, modale de création, routes détail/édition, écran « introuvable ».
 - **Critères** : tous les parcours accessibles ; retour Android cohérent partout.
 - **Tests** : parcours manuel complet sur appareil.
 
-### Phase 6 — Écran Aujourd'hui
+### Phase 6 — Écran Aujourd'hui *(livrée)*
 - **Livrables** : synthèse de progression, liste du jour, cocher/décocher, états « vide » et « journée terminée ».
 - **Critères** : progression juste et mise à jour immédiatement ; cohérent clair/sombre ; accessible TalkBack.
 - **Tests** : tests composant `TaskRow` ; test manuel avec 0, 1, n tâches et toutes terminées.
 
-### Phase 7 — Toutes les tâches
+### Phase 7 — Toutes les tâches *(livrée)*
 - **Livrables** : liste regroupée par jour, filtres par statut, recherche (si validée), état « aucun résultat ».
 - **Critères** : filtres corrects, liste fluide avec ~200 tâches (utiliser `FlatList`/`SectionList`).
 - **Tests** : tests de la logique de filtre ; test manuel de performance avec données générées.
 
-### Phase 8 — Création et modification
+### Phase 8 — Création et modification *(livrée)*
 - **Livrables** : `TaskForm` partagé création/édition, sélecteur de priorité, sélecteurs date/heure natifs, gestion du clavier, erreurs de validation.
 - **Critères** : impossible de créer une tâche invalide ; erreurs claires ; clavier ne masque rien ; édition pré-remplie.
 - **Tests** : tests `TaskForm` ; test manuel complet sur Android.
 - **Prérequis** : dépendance sélecteur de date à valider (probablement `@react-native-community/datetimepicker`).
 
-### Phase 9 — Détail, complétion, suppression
+### Phase 9 — Détail, complétion, suppression *(livrée)*
 - **Livrables** : écran détail, actions terminer / modifier / supprimer, feuille de confirmation, toast « Annuler » (si validé).
 - **Critères** : suppression uniquement après confirmation ; retour correct après suppression.
 - **Tests** : tests du reducer (suppression, annulation) ; test manuel.
 
-### Phase 10 — Paramètres
+### Phase 10 — Paramètres *(livrée)*
 - **Livrables** : choix du thème (automatique / clair / sombre) persisté, informations de version, réinitialisation des données avec confirmation (si validée).
 - **Critères** : thème appliqué immédiatement et conservé au redémarrage.
 - **Tests** : persistance des paramètres ; test manuel.
 
-### Phase 11 — Finitions et qualité
+### Phase 11 — Finitions et qualité *(livrée côté code ; revue TalkBack / grande police sur appareil à faire)*
 - **Livrables** : animations validées, revue accessibilité (TalkBack, grande police), icône et splash, nettoyage du code.
 - **Critères** : checklist §F complète sur appareil ; aucune alerte lint/type.
 - **Tests** : passe complète de tests manuels + automatiques.
 
-### Phase 12 — Build Android installable
+### Phase 12 — Build Android installable *(configuration prête ; build à lancer par le porteur)*
 - **Objectif** : un fichier APK installable sur le téléphone sans environnement de développement.
 - **Livrables** : `eas.json` avec un profil `preview` produisant un APK (EAS Build, nécessite un compte Expo gratuit) **ou** build local via `npx expo prebuild` + Gradle (nécessite Android SDK/JDK). Choix à faire à ce moment-là.
 - **Critères** : APK installé sur un téléphone réel, données persistées entre redémarrages, fonctionnement hors ligne.
 - **Tests** : parcours complet sur l'APK installé.
 - **Prérequis** : compte Expo (si EAS), aucune clé de signature commitée.
+- **État** : `eas.json` contient le profil `preview` (APK, distribution interne) et `production` (AAB). `app.json > android.package` = `com.rilaycode.tasky` (proposition, modifiable **avant** le premier build uniquement).
+- **Commandes (machine du porteur)** :
+  ```bash
+  npx eas-cli@latest login
+  npx eas-cli@latest build -p android --profile preview
+  ```
+  EAS gère la clé de signature (stockée chez Expo, jamais dans le dépôt). À la fin : lien / QR code de téléchargement de l'APK.
 
 ---
 
@@ -502,7 +531,7 @@ Légende : ✅ validé explicitement · ☑️ proposition adoptée par défaut 
 |---|---|---|---|
 | 1 | Nom affiché | **Tasky** (la maquette « taskly » est obsolète sur ce point) | ✅ |
 | 2 | Direction artistique révisée (§D) | Adoptée ; **finalisée directement en code**, sans nouvelle maquette Figma | ✅ |
-| 3 | Police d'affichage | Instrument Serif, Bricolage Grotesque ou Space Grotesk — à choisir dans le labo, sur téléphone | ⏳ |
+| 3 | Police d'affichage | **Bricolage Grotesque** (choisie sur téléphone) | ✅ |
 | 4 | Échéance obligatoire ? Heure obligatoire ? | **Ni la date ni l'heure ne sont obligatoires** ; sans date = « Sans échéance » | ✅ |
 | 5 | Définition de « tâches du jour » | Échéance aujourd'hui + tâches en retard non terminées (affichées en tête) | ☑️ |
 | 6 | Recherche | **Gardée** (filtre texte local) | ✅ |
@@ -513,5 +542,8 @@ Légende : ✅ validé explicitement · ☑️ proposition adoptée par défaut 
 | 11 | Thème « Automatique (système) » | Ajouté, valeur par défaut | ☑️ |
 | 12 | Stockage | AsyncStorage (2.2.0 via `npx expo install`) derrière un repository | ☑️ |
 | 13 | Mode de test sur téléphone | Expo Go (version compatible SDK 58 installée manuellement) | ✅ |
-| 14 | Identifiant du package Android | `com.<nom>.tasky` — non renseigné dans `app.json` (inutile pour Expo Go, requis au premier build natif) | ⏳ |
+| 14 | Identifiant du package Android | `com.rilaycode.tasky` renseigné dans `app.json` — à confirmer **avant** le premier build | ☑️ |
 | 15 | Hébergement du code | Dépôt GitHub `RilayCode/tasky` | ✅ |
+| 16 | Livraison | Phases 3 à 11 livrées d'un bloc à la demande du porteur (« faire l'app complète »), un commit par groupe de phases | ✅ |
+| 17 | Ton des textes | Vouvoiement, comme la maquette | ☑️ |
+| 18 | Évolutions possibles (hors périmètre, non commencées) | Gestes de balayage sur les lignes (terminer/supprimer), retour haptique, rappels locaux, tri manuel | ⏳ à décider |
