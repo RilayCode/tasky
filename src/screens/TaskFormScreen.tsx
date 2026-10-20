@@ -64,11 +64,8 @@ export function TaskFormScreen({ taskId }: { taskId?: string }) {
               iconLabel={editing ? 'Annuler la modification' : 'Fermer sans créer'}
               onIconPress={close}
             />
-            <AppText variant="eyebrow" tone="secondary">
-              {editing ? 'Modifier' : 'Nouvelle tâche'}
-            </AppText>
-            <AppText variant="display" accessibilityRole="header">
-              {editing ? 'Ajuster le cap.' : 'Une chose à la fois.'}
+            <AppText variant="title" accessibilityRole="header">
+              {editing ? 'Modifier la tâche' : 'Nouvelle tâche'}
             </AppText>
           </View>
         }

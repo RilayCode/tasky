@@ -1,6 +1,6 @@
 import { createContext, use, useEffect, useRef, useState, type ReactNode } from 'react';
 import { AccessibilityInfo, Pressable, StyleSheet, View } from 'react-native';
-import Animated, { FadeOutDown, SlideInDown } from 'react-native-reanimated';
+import Animated, { FadeOutUp, SlideInUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppText } from '@/components/ui/AppText';
@@ -23,8 +23,6 @@ type ShowToast = (options: ToastOptions) => void;
 const ToastContext = createContext<ShowToast | null>(null);
 
 const DURATION_MS = 4500;
-// Hauteur de la barre d'onglets : le toast s'affiche juste au-dessus.
-export const TOAST_BOTTOM_OFFSET = 72;
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const { colors } = useTheme();
@@ -47,14 +45,16 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext value={show}>
       {children}
+      {/* En haut d'écran : ne recouvre jamais le bouton flottant, la barre d'onglets
+          ni les boutons d'action en bas des écrans de détail et de formulaire. */}
       {toast && (
         <View
           pointerEvents="box-none"
-          style={[styles.overlay, { bottom: insets.bottom + TOAST_BOTTOM_OFFSET + spacing.md }]}>
+          style={[styles.overlay, { top: insets.top + spacing.sm }]}>
           <Animated.View
             key={toast.id}
-            entering={SlideInDown.springify().damping(18)}
-            exiting={FadeOutDown.duration(180)}
+            entering={SlideInUp.springify().damping(18)}
+            exiting={FadeOutUp.duration(180)}
             accessibilityLiveRegion="polite"
             style={[styles.toast, { backgroundColor: colors.inverseSurface }]}>
             <Icon name="check-circle" size={18} color="inverseAction" />

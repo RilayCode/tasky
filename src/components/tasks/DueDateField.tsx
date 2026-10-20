@@ -64,9 +64,8 @@ export function DueDateField({ date, time, today, onChange, error }: DueDateFiel
     }
   };
 
-  const dateLabel = date
-    ? `${formatRelativeDay(date, today)}${date === today || date === tomorrow ? ` · ${formatShortDate(date)}` : ''}`
-    : 'Sans échéance';
+  const dateLabel = date ? formatRelativeDay(date, today) : 'Sans échéance';
+  const dateAccessibility = date ? `${dateLabel}, ${formatShortDate(date)}` : dateLabel;
 
   return (
     <View style={styles.container}>
@@ -81,7 +80,7 @@ export function DueDateField({ date, time, today, onChange, error }: DueDateFiel
           icon="calendar"
           label={dateLabel}
           placeholder={date === null}
-          accessibilityLabel={`Date d’échéance : ${dateLabel}. Modifier`}
+          accessibilityLabel={`Date d’échéance : ${dateAccessibility}. Modifier`}
           onPress={() => openPicker('date')}
           grow
         />
