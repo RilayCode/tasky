@@ -41,6 +41,10 @@
   },
   "private": true,
   "jest": {
-    "preset": "jest-expo"
+    "preset": "jest-expo",
+    "resolver": "react-native-reanimated/jest/resolver",
+    "setupFiles": [
+      "<rootDir>/jest.setup.ts"
+    ]
   }
 }

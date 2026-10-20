@@ -1,7 +1,7 @@
 # CLAUDE.md — Tasky
 
 > Document de référence du projet. À lire en entier avant toute session de développement.
-> Dernière mise à jour : 2026-10-20 (phase 1 — initialisation, en attente de validation sur appareil).
+> Dernière mise à jour : 2026-10-20 (phase 2 — design system livré, en attente de validation sur appareil).
 
 ---
 
@@ -9,8 +9,8 @@
 
 | Élément | État |
 |---|---|
-| Phase en cours | **Phase 1 — Initialisation** : terminée côté code, **test sur téléphone non effectué** |
-| Code applicatif | Projet Expo SDK 58 nettoyé ; un seul écran provisoire « Tasky » (`src/app/index.tsx`) |
+| Phase en cours | **Phase 2 — Thème et primitives UI** : livrée, **validation sur téléphone en attente** (choix de la police d'affichage inclus) |
+| Code applicatif | Thème (tokens clair/sombre, polices), 7 primitives UI animées, écran provisoire « Labo de design » (`src/lab/`) affiché à l'accueil |
 | Dépôt git | GitHub `RilayCode/tasky`, branche `main` |
 | Design | Direction révisée (§D) **adoptée** ; elle sera finalisée directement en code (pas de nouvelle maquette Figma) |
 | Décisions ouvertes | Voir §I |
@@ -75,7 +75,7 @@ Versions **vérifiées le 2026-10-20** via `npm view` (registre npm) et le templ
 
 **Règle d'installation :** toute dépendance native ou liée à Expo s'installe avec `npx expo install <paquet>` (et non `npm install`), pour que l'outil choisisse la version compatible avec le SDK. Vérifier ensuite avec `npx expo-doctor`.
 
-**Point à vérifier en phase 1 :** que l'application Expo Go disponible sur le téléphone Android supporte le SDK 58. Sinon, utiliser un *development build* (voir §F).
+**Expo Go et SDK 58 (constaté en phase 1) :** la version d'Expo Go du Play Store ne supportait pas encore le SDK 58 (« Project is incompatible with this version of Expo Go »). Le porteur du projet a installé manuellement la version d'Expo Go compatible SDK 58 : l'app tourne. Si le téléphone change ou si Expo Go est mis à jour, revérifier la compatibilité.
 
 ### Constats de la phase 1 (installation réelle)
 - **Dépendances conservées du template** : expo, expo-constants, expo-font, expo-linking, expo-router, expo-splash-screen, expo-status-bar, expo-system-ui, react, react-native, react-native-gesture-handler, react-native-reanimated, react-native-worklets, react-native-safe-area-context, react-native-screens. Reanimated et Gesture Handler servent à la fluidité visée (animations, gestes).
@@ -88,11 +88,19 @@ Versions **vérifiées le 2026-10-20** via `npm view` (registre npm) et le templ
 - `app.json` active `experiments.typedRoutes` (routes typées) et `experiments.reactCompiler` (mémoïsation automatique, rend `useMemo`/`useCallback` rarement nécessaires) — réglages par défaut du template, conservés.
 - `AGENTS.md` (fourni par Expo) : consignes officielles Expo pour agents, à respecter aussi. `.claude/settings.json` active le plugin Expo pour Claude Code.
 
+### Constats de la phase 2
+- **Reanimated 4 + React Compiler** : écrire une valeur animée avec `shared.set(...)`, jamais `shared.value = ...` (la règle lint `react-hooks/immutability` du compilateur le refuse). La lecture `shared.value` reste correcte dans les worklets (`useAnimatedStyle`).
+- **Jest + Reanimated** : `package.json > jest` utilise `resolver: "react-native-reanimated/jest/resolver"` (charge les implémentations JS de Reanimated/Worklets) et `jest.setup.ts` appelle `setUpTests()`. Sans cela : `Cannot read properties of undefined (reading 'loadUnpackersWithCode')`.
+- **Accessibilité** : une `View` porteuse d'un rôle (ex. `progressbar`) doit avoir `accessible` pour être annoncée comme un seul élément par TalkBack (et trouvée par `getByRole`).
+- **Polices** : fichiers TTF copiés dans `assets/fonts/` (licences OFL incluses), chargés au démarrage par `useFonts` pendant l'écran de démarrage. Aucune dépendance npm de police ajoutée.
+- **Contrôle visuel sans téléphone** : `EXPO_OFFLINE=1 npx expo export --platform web` puis captures Playwright (Chromium préinstallé) à 390×844 en clair et sombre. Utile pour repérer un défaut de mise en page ; **ne remplace pas** le test Android (polices, ombres, ripple, performances diffèrent).
+
 ### Environnement cloud de Claude Code (limites connues)
 - Le proxy bloque `api.expo.dev` / `exp.host` / React Native Directory. Lancer les commandes Expo avec **`EXPO_OFFLINE=1`** (ex. `EXPO_OFFLINE=1 npx expo install <pkg>`) : les versions sont alors lues dans `node_modules/expo/bundledNativeModules.json`.
 - `npx expo-doctor` : 2 vérifications sur 20 échouent **uniquement faute de réseau** (schéma `app.json`, React Native Directory). À relancer sur une machine connectée.
 - `npm audit` signale des vulnérabilités dans des dépendances **transitives des outils** (CLI Expo, Jest : braces, node-forge, uuid…), pas dans le code embarqué. **Ne pas lancer `npm audit fix --force`** : il casserait l'alignement des versions du SDK. Se réévalue à chaque montée de SDK.
 - Impossible de lancer l'app sur un téléphone depuis le conteneur : le code est poussé sur `RilayCode/tasky`, puis lancé depuis la machine du porteur du projet (`git pull`, `npm install`, `npx expo start`).
+- Le système de permissions refuse `mv`/`rm -rf` sur des dossiers de projet (« destruction irréversible ») : préférer des opérations non destructives (copie) et demander au porteur du projet pour les suppressions.
 
 ### Stratégie de navigation
 - Expo Router, dossier `src/app/`.
@@ -137,7 +145,8 @@ Versions **vérifiées le 2026-10-20** via `npm view` (registre npm) et le templ
 ├── app.json              configuration Expo (nom, icônes, thème système…)
 ├── package.json
 ├── tsconfig.json         "strict": true, alias "@/*" → "src/*"
-├── assets/               polices, icône, splash
+├── jest.setup.ts         initialisation des tests (Reanimated)
+├── assets/               polices (fonts/ + licences OFL), icône, splash
 └── src/
     ├── app/              ROUTES uniquement (Expo Router). Fichiers fins : assemblent des composants.
     │   ├── _layout.tsx           providers (thème, tâches), stack racine
@@ -165,9 +174,13 @@ Versions **vérifiées le 2026-10-20** via `npm view` (registre npm) et le templ
     │   │   └── __tests__/
     │   └── settings/           même découpage, plus léger
     ├── __tests__/        tests des écrans (jamais dans src/app : chaque fichier y devient une route)
+    ├── lab/              TEMPORAIRE (phase 2) : écran « Labo de design », à supprimer en phase 5-6
+    ├── test/             utilitaires de test (renderWithTheme : thème + zones sûres)
     ├── theme/
-    │   ├── tokens.ts      couleurs, typo, espacements, rayons (source unique)
-    │   ├── ThemeProvider.tsx / useTheme.ts
+    │   ├── tokens.ts      couleurs sémantiques clair/sombre, typo, espacements, rayons, mouvement (source unique)
+    │   ├── fonts.ts       fichiers de police chargés au démarrage
+    │   ├── contrast.ts    calcul de contraste WCAG (utilisé par les tests)
+    │   ├── ThemeProvider.tsx  contexte + hook useTheme (préférence auto/clair/sombre)
     └── lib/
         ├── storage.ts     petit adaptateur autour d'AsyncStorage (JSON + erreurs)
         └── date.ts        formatage FR, « aujourd'hui », comparaisons de jours
@@ -283,7 +296,16 @@ Garder « l'éditorial du quotidien », le rendre plus personnel et plus fonctio
 - **Adaptation Android** : retour système, sélecteurs natifs, ripple, barre d'état/navigation.
 - **Thème** : Automatique (par défaut) / Clair / Sombre.
 
-### Principes de cohérence visuelle (s'appliqueront après validation)
+### Implémentation actuelle (phase 2, `src/theme/tokens.ts`)
+- **Couleurs sémantiques** : `background`, `surface`, `textPrimary`, `textSecondary`, `borderSubtle` (filets décoratifs), `borderStrong` (contour des champs, ≥ 3:1), `accent`/`onAccent` (chartreuse : action principale, accomplissement), `selected`/`onSelected`, `progressFill`/`progressTrack`, `checkFill`/`checkMark`, `danger`/`onDanger`, `ripple`.
+- **Décision clé** : en clair, la jauge et la case cochée sont en **encre** (le chartreuse ne fait que 1,18:1 sur ivoire) ; la coche est chartreuse. En sombre, jauge et case sont **chartreuse**. Le chartreuse en clair reste réservé au bouton principal et au badge « Journée accomplie ».
+- **Contrastes testés automatiquement** (`src/theme/__tests__/contrast.test.ts`) : 13 paires × 2 thèmes. Toute modification de couleur doit garder ce test vert.
+- **Typographie** : 8 styles (`numeral`, `display`, `title`, `headline`, `body`, `bodyStrong`, `meta`, `eyebrow`). Interface en Inter (400/500/600) ; `numeral`/`display`/`title` dans la police d'affichage. Chiffres tabulaires pour `numeral` et `meta`.
+- **Police d'affichage** : 3 candidates comparables en direct dans le labo — Instrument Serif (éditorial, sérif), Bricolage Grotesque (grotesque expressive), Space Grotesk (géométrique). **Choix en attente du porteur** ; une fois choisie, retirer les deux autres fichiers et le sélecteur temporaire (`displayFont` du ThemeProvider).
+- **Espacements** 4/8/12/16/24/32/48 ; **rayons** 8/12/16/pill ; **cible tactile** 48 ; **mouvement** : 150/250/400 ms + ressort (damping 18, stiffness 220). Les animations Reanimated respectent par défaut le réglage système « réduire les animations ».
+- **Primitives** (`src/components/ui/`) : `AppText`, `Button` (primary/secondary/ghost/danger, ressort à l'appui + ripple Android), `Checkbox` (animation ressort, coche dessinée sans icône), `ProgressBar` (segments ≤ 7, sinon barre continue ; remplissage animé en cascade), `SegmentedControl` (indicateur glissant), `TextField` (bordure animée au focus, état d'erreur), `Screen` (zones sûres + défilement), `ListDivider`.
+
+### Principes de cohérence visuelle
 - Toutes les valeurs proviennent de `src/theme/tokens.ts`. Aucune couleur, taille ou espacement en dur dans les composants.
 - Tokens **sémantiques** (`text.primary`, `surface.field`, `action.primary`, `feedback.danger`…) mappés sur une palette brute ; les composants n'utilisent que les sémantiques.
 - Chaque token a une valeur clair **et** une valeur sombre ; le thème sombre n'est pas une inversion automatique.
@@ -383,14 +405,14 @@ Chaque phase est courte, livrable et testable. Ne pas anticiper la phase suivant
 - **Tests** : aucun (pas de code).
 - **Prérequis** : accès Figma (OK).
 
-### Phase 1 — Initialisation du projet *(code fait ; validation sur appareil en attente)*
+### Phase 1 — Initialisation du projet *(terminée — validée sur téléphone Android avec Expo Go SDK 58)*
 - **Objectif** : une app Expo vide qui démarre sur le téléphone.
 - **Livrables** : projet Expo SDK 58 TypeScript (template par défaut, nettoyé des exemples), `tsconfig` strict + alias `@/`, ESLint, Jest configuré avec un test trivial, `git init` + `.gitignore`, `app.json` (nom « Tasky », identifiant Android).
 - **Critères** : l'app affiche un écran « Tasky » sur un Android réel ; les 4 commandes de vérification passent.
 - **Tests** : vérifications automatiques ; lancement sur appareil.
 - **Prérequis** : téléphone Android ; Expo Go installé ou plan B dev build ; décision sur l'identifiant de package Android (ex. `com.<vous>.tasky`). Note : `create-expo-app` dans un dossier non vide peut refuser de s'exécuter → générer dans un sous-dossier temporaire puis déplacer, en conservant `CLAUDE.md`.
 
-### Phase 2 — Thème et primitives UI
+### Phase 2 — Thème et primitives UI *(livrée — validation sur téléphone en attente)*
 - **Objectif** : le design system validé existe en code.
 - **Livrables** : `theme/tokens.ts` (clair + sombre), `ThemeProvider` (automatique / clair / sombre, non persisté pour l'instant), polices chargées, primitives `AppText`, `Button`, `Screen`, `TextField`, `SegmentedControl`, `Checkbox`, `ProgressBar`. Un écran de démonstration temporaire.
 - **Critères** : bascule clair/sombre fonctionnelle ; aucune valeur en dur ; contrastes conformes à §E.
@@ -480,7 +502,7 @@ Légende : ✅ validé explicitement · ☑️ proposition adoptée par défaut 
 |---|---|---|---|
 | 1 | Nom affiché | **Tasky** (la maquette « taskly » est obsolète sur ce point) | ✅ |
 | 2 | Direction artistique révisée (§D) | Adoptée ; **finalisée directement en code**, sans nouvelle maquette Figma | ✅ |
-| 3 | Police d'affichage | Choisie en code en phase 2 (comparer 2–3 candidats sur un écran de démonstration) | ⏳ phase 2 |
+| 3 | Police d'affichage | Instrument Serif, Bricolage Grotesque ou Space Grotesk — à choisir dans le labo, sur téléphone | ⏳ |
 | 4 | Échéance obligatoire ? Heure obligatoire ? | **Ni la date ni l'heure ne sont obligatoires** ; sans date = « Sans échéance » | ✅ |
 | 5 | Définition de « tâches du jour » | Échéance aujourd'hui + tâches en retard non terminées (affichées en tête) | ☑️ |
 | 6 | Recherche | **Gardée** (filtre texte local) | ✅ |
@@ -490,6 +512,6 @@ Légende : ✅ validé explicitement · ☑️ proposition adoptée par défaut 
 | 10 | Salutation « Bonjour <prénom> » | **Retirée** | ✅ |
 | 11 | Thème « Automatique (système) » | Ajouté, valeur par défaut | ☑️ |
 | 12 | Stockage | AsyncStorage (2.2.0 via `npx expo install`) derrière un repository | ☑️ |
-| 13 | Mode de test sur téléphone | Expo Go si compatible SDK 58, sinon development build | ⏳ à vérifier par le porteur |
+| 13 | Mode de test sur téléphone | Expo Go (version compatible SDK 58 installée manuellement) | ✅ |
 | 14 | Identifiant du package Android | `com.<nom>.tasky` — non renseigné dans `app.json` (inutile pour Expo Go, requis au premier build natif) | ⏳ |
 | 15 | Hébergement du code | Dépôt GitHub `RilayCode/tasky` | ✅ |
