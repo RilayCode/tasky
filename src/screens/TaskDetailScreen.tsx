@@ -14,7 +14,7 @@ import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { useToast } from '@/components/ui/ToastProvider';
 import { isCompleted, isOverdue } from '@/features/tasks/logic';
 import { useTask, useTasks } from '@/features/tasks/TasksProvider';
-import { PRIORITY_LABELS, type Priority } from '@/features/tasks/types';
+import { PRIORITY_LABELS, type Priority, type Task } from '@/features/tasks/types';
 import { useCompleteTask } from '@/hooks/useCompleteTask';
 import { useToday } from '@/hooks/useToday';
 import { capitalize, formatLongDate, formatRelativeDay, formatShortDate, toDateKey } from '@/lib/date';
@@ -35,7 +35,11 @@ function goBack() {
 export function TaskDetailScreen({ id }: { id: string | undefined }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  const task = useTask(id);
+  const liveTask = useTask(id);
+  // Pendant l'animation de sortie qui suit une suppression, on continue d'afficher
+  // la tâche supprimée au lieu de l'état « Tâche introuvable ».
+  const [deletedTask, setDeletedTask] = useState<Task | null>(null);
+  const task = liveTask ?? deletedTask;
   const { removeTask, restoreTask, setCompleted } = useTasks();
   const toggle = useCompleteTask();
   const showToast = useToast();
@@ -61,6 +65,7 @@ export function TaskDetailScreen({ id }: { id: string | undefined }) {
 
   const deleteTask = () => {
     setConfirmDelete(false);
+    setDeletedTask(task);
     const removed = removeTask(task.id);
     goBack();
     if (removed) {

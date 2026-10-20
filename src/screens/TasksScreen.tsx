@@ -15,6 +15,7 @@ import { filterByStatus, groupTasksByDay, isCompleted, searchTasks } from '@/fea
 import { useTasks } from '@/features/tasks/TasksProvider';
 import type { TaskStatusFilter } from '@/features/tasks/types';
 import { useCompleteTask } from '@/hooks/useCompleteTask';
+import { usePressGuard } from '@/hooks/usePressGuard';
 import { useToday } from '@/hooks/useToday';
 import { useTheme } from '@/theme/ThemeProvider';
 import { spacing } from '@/theme/tokens';
@@ -34,6 +35,7 @@ export function TasksScreen() {
   const { tasks } = useTasks();
   const today = useToday();
   const toggle = useCompleteTask();
+  const guard = usePressGuard();
   const [filter, setFilter] = useState<TaskStatusFilter>('all');
   const [query, setQuery] = useState('');
 
@@ -69,7 +71,7 @@ export function TasksScreen() {
     if (tasks.length === 0) {
       return (
         <EmptyState title="Votre liste est vide." message="Ajoutez une première tâche : elle apparaîtra ici.">
-          <Button label="Créer une tâche" icon="plus" onPress={() => router.push('/task/new')} />
+          <Button label="Créer une tâche" icon="plus" onPress={guard(() => router.push('/task/new'))} />
         </EmptyState>
       );
     }
@@ -105,7 +107,7 @@ export function TasksScreen() {
             today={today}
             showDay={false}
             onToggle={(completed) => toggle(item, completed)}
-            onPress={() => router.push({ pathname: '/task/[id]', params: { id: item.id } })}
+            onPress={guard(() => router.push({ pathname: '/task/[id]', params: { id: item.id } }))}
           />
         )}
         stickySectionHeadersEnabled={false}
@@ -115,7 +117,7 @@ export function TasksScreen() {
         showsVerticalScrollIndicator={false}
       />
       {tasks.length > 0 && (
-        <Fab icon="plus" accessibilityLabel="Nouvelle tâche" onPress={() => router.push('/task/new')} />
+        <Fab icon="plus" accessibilityLabel="Nouvelle tâche" onPress={guard(() => router.push('/task/new'))} />
       )}
     </SafeAreaView>
   );

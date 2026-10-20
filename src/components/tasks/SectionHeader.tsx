@@ -16,7 +16,7 @@ export function SectionHeader({ title, count, danger = false }: SectionHeaderPro
         {title}
       </AppText>
       {count !== undefined && (
-        <AppText variant="eyebrow" tone="secondary" accessibilityLabel={`${count} tâches`}>
+        <AppText variant="eyebrow" tone="secondary" accessibilityLabel={`${count} tâche${count > 1 ? 's' : ''}`}>
           {String(count).padStart(2, '0')}
         </AppText>
       )}

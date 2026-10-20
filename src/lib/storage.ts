@@ -18,6 +18,10 @@ export async function readJson(key: string): Promise<ReadResult> {
   }
 }
 
+export async function readRaw(key: string): Promise<string | null> {
+  return AsyncStorage.getItem(key);
+}
+
 export async function writeJson(key: string, value: unknown): Promise<void> {
   await AsyncStorage.setItem(key, JSON.stringify(value));
 }

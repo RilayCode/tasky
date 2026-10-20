@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { makeTask } from '@/test/taskFactory';
 
-import { loadTasks, saveTasks, TASKS_KEY } from '../repository';
+import { BACKUP_KEY, loadTasks, saveTasks, TASKS_KEY } from '../repository';
 
 beforeEach(async () => {
   await AsyncStorage.clear();
@@ -26,6 +26,15 @@ describe('repository des tâches', () => {
     if (result.ok) throw new Error('chargement inattendu');
     expect(await AsyncStorage.getItem(result.backupKey)).toBe('{oups');
     expect(await AsyncStorage.getItem(TASKS_KEY)).toBe('{oups');
+  });
+
+  it('ne recopie pas la même donnée illisible à chaque relance', async () => {
+    await AsyncStorage.setItem(TASKS_KEY, '{oups');
+    await loadTasks();
+    await loadTasks();
+    await loadTasks();
+    const keys = (await AsyncStorage.getAllKeys()).filter((key) => key.includes(':backup'));
+    expect(keys).toEqual([BACKUP_KEY]);
   });
 
   it('refuse une tâche au format invalide', async () => {

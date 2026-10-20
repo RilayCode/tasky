@@ -17,11 +17,12 @@ interface TextFieldProps
     'value' | 'onChangeText' | 'placeholder' | 'multiline' | 'maxLength' | 'autoFocus' | 'returnKeyType'
   > {
   label: string;
+  required?: boolean;
   error?: string;
   hint?: string;
 }
 
-export function TextField({ label, error, hint, multiline, ...inputProps }: TextFieldProps) {
+export function TextField({ label, required = false, error, hint, multiline, ...inputProps }: TextFieldProps) {
   const { colors, typography } = useTheme();
   const [focused, setFocused] = useState(false);
   const focus = useSharedValue(0);
@@ -39,10 +40,12 @@ export function TextField({ label, error, hint, multiline, ...inputProps }: Text
 
   return (
     <View style={styles.container}>
-      <AppText variant="bodyStrong">{label}</AppText>
+      <AppText variant="bodyStrong" importantForAccessibility="no">
+        {required ? `${label} *` : label}
+      </AppText>
       <Animated.View style={[styles.frame, { backgroundColor: colors.surface }, frameStyle]}>
         <TextInput
-          accessibilityLabel={label}
+          accessibilityLabel={required ? `${label}, obligatoire` : label}
           accessibilityHint={error ?? hint}
           placeholderTextColor={colors.textSecondary}
           selectionColor={colors.textPrimary}

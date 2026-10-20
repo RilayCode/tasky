@@ -23,8 +23,8 @@ export function ProgressHero({ progress }: ProgressHeroProps) {
       <View style={styles.hero}>
         <View
           style={styles.numeral}
-          accessible
-          accessibilityLabel={`${done} tâches terminées sur ${total}`}>
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants">
           <Animated.View key={done} entering={FadeInDown.duration(280)}>
             <AppText variant="numeral">{done}</AppText>
           </Animated.View>
@@ -52,7 +52,7 @@ export function ProgressHero({ progress }: ProgressHeroProps) {
       <ProgressBar
         completed={done}
         total={total}
-        accessibilityLabel={`Progression du jour : ${done} sur ${total}`}
+        accessibilityLabel={`Progression du jour : ${done} ${done > 1 ? 'terminées' : 'terminée'} sur ${total}`}
       />
     </View>
   );

@@ -23,6 +23,22 @@ type ShowToast = (options: ToastOptions) => void;
 const ToastContext = createContext<ShowToast | null>(null);
 
 const DURATION_MS = 4500;
+// Avec un lecteur d'écran, il faut le temps d'atteindre le bouton « Annuler ».
+const SCREEN_READER_DURATION_MS = 12000;
+
+// Durée d'affichage : réglage Android « Temps pour agir » et lecteur d'écran pris en compte.
+async function toastDuration(): Promise<number> {
+  try {
+    const [recommended, screenReader] = await Promise.all([
+      AccessibilityInfo.getRecommendedTimeoutMillis(DURATION_MS),
+      AccessibilityInfo.isScreenReaderEnabled(),
+    ]);
+    return Math.max(recommended, screenReader ? SCREEN_READER_DURATION_MS : 0);
+  } catch {
+    // API d'accessibilité indisponible (ex. tests) : durée par défaut.
+    return DURATION_MS;
+  }
+}
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const { colors } = useTheme();
@@ -32,8 +48,15 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!toast) return;
-    const timer = setTimeout(() => setToast(null), DURATION_MS);
-    return () => clearTimeout(timer);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let cancelled = false;
+    toastDuration().then((duration) => {
+      if (!cancelled) timer = setTimeout(() => setToast(null), duration);
+    });
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [toast]);
 
   const show: ShowToast = (options) => {
@@ -55,7 +78,6 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             key={toast.id}
             entering={SlideInUp.springify().damping(18)}
             exiting={FadeOutUp.duration(180)}
-            accessibilityLiveRegion="polite"
             style={[styles.toast, { backgroundColor: colors.inverseSurface }]}>
             <Icon name="check-circle" size={18} color="inverseAction" />
             <AppText variant="bodyStrong" style={[styles.message, { color: colors.onInverseSurface }]}>

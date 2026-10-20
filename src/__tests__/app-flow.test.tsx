@@ -15,7 +15,7 @@ async function openApp() {
 }
 
 async function createTask(title: string) {
-  await fireEvent.changeText(screen.getByLabelText('Titre *'), title);
+  await fireEvent.changeText(screen.getByLabelText('Titre, obligatoire'), title);
   await fireEvent.press(screen.getByRole('button', { name: 'Créer la tâche' }));
 }
 
@@ -58,7 +58,7 @@ describe('Tasky — parcours utilisateur', () => {
     expect(screen.getByText('Le titre est requis pour créer une tâche.')).toBeOnTheScreen();
     expect(screen.getByText('Corrigez le champ signalé, puis réessayez.')).toBeOnTheScreen();
 
-    await fireEvent.changeText(screen.getByLabelText('Titre *'), 'Lire 20 minutes');
+    await fireEvent.changeText(screen.getByLabelText('Titre, obligatoire'), 'Lire 20 minutes');
     expect(screen.queryByText('Le titre est requis pour créer une tâche.')).toBeNull();
   });
 

@@ -9,6 +9,8 @@ import { motion, radius, spacing, touchTarget } from '@/theme/tokens';
 export interface SegmentOption<T extends string> {
   value: T;
   label: string;
+  // Libellé lu par le lecteur d'écran quand le libellé visible contient des symboles.
+  accessibilityLabel?: string;
 }
 
 interface SegmentedControlProps<T extends string> {
@@ -64,7 +66,7 @@ export function SegmentedControl<T extends string>({
           <Pressable
             key={option.value}
             accessibilityRole="radio"
-            accessibilityLabel={option.label}
+            accessibilityLabel={option.accessibilityLabel ?? option.label}
             accessibilityState={{ checked: selected }}
             onPress={() => onChange(option.value)}
             style={styles.option}>

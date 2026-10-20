@@ -1,5 +1,5 @@
 import { isValidDateKey, isValidTime } from '@/lib/date';
-import { readJson, writeJson, writeRaw } from '@/lib/storage';
+import { readJson, readRaw, writeJson, writeRaw } from '@/lib/storage';
 
 import type { Priority, Task } from './types';
 
@@ -37,11 +37,20 @@ export function isTask(value: unknown): value is Task {
   );
 }
 
-// Donnée illisible : on la met de côté sous une clé de secours au lieu de l'écraser.
+export const BACKUP_KEY = `${TASKS_KEY}:backup`;
+
+// Donnée illisible : on la met de côté au lieu de l'écraser. Une même donnée n'est
+// copiée qu'une fois (sinon chaque relance ajouterait une copie et remplirait le stockage) ;
+// une donnée différente ne remplace jamais une copie existante.
 async function backup(raw: string): Promise<string> {
-  const backupKey = `${TASKS_KEY}:backup:${Date.now()}`;
-  await writeRaw(backupKey, raw);
-  return backupKey;
+  const existing = await readRaw(BACKUP_KEY);
+  if (existing === null || existing === raw) {
+    if (existing === null) await writeRaw(BACKUP_KEY, raw);
+    return BACKUP_KEY;
+  }
+  const datedKey = `${BACKUP_KEY}:${Date.now()}`;
+  await writeRaw(datedKey, raw);
+  return datedKey;
 }
 
 export async function loadTasks(): Promise<LoadTasksResult> {

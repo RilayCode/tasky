@@ -1,11 +1,11 @@
-import { useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DueDateField } from '@/components/tasks/DueDateField';
 import { AppText } from '@/components/ui/AppText';
 import { Button } from '@/components/ui/Button';
-import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { SegmentedControl, type SegmentOption } from '@/components/ui/SegmentedControl';
 import { TextField } from '@/components/ui/TextField';
 import type { Priority, TaskDraft, TaskInput } from '@/features/tasks/types';
 import {
@@ -17,10 +17,10 @@ import {
 import type { DateKey } from '@/lib/date';
 import { spacing } from '@/theme/tokens';
 
-const PRIORITY_OPTIONS: { value: Priority; label: string }[] = [
-  { value: 'low', label: '↓ Basse' },
-  { value: 'normal', label: '– Normale' },
-  { value: 'high', label: '↑ Haute' },
+const PRIORITY_OPTIONS: SegmentOption<Priority>[] = [
+  { value: 'low', label: '↓ Basse', accessibilityLabel: 'Basse' },
+  { value: 'normal', label: '– Normale', accessibilityLabel: 'Normale' },
+  { value: 'high', label: '↑ Haute', accessibilityLabel: 'Haute' },
 ];
 
 interface TaskFormProps {
@@ -36,6 +36,8 @@ export function TaskForm({ initial, today, submitLabel, header, onSubmit }: Task
   const [input, setInput] = useState<TaskInput>(initial);
   const [errors, setErrors] = useState<TaskInputErrors>({});
   const [submitted, setSubmitted] = useState(false);
+  // Verrou : un double appui rapide sur « Créer » ne crée pas deux tâches.
+  const submitting = useRef(false);
 
   // Après une première tentative, on revalide à chaque saisie : l'erreur
   // disparaît dès que le champ devient valide.
@@ -49,9 +51,11 @@ export function TaskForm({ initial, today, submitLabel, header, onSubmit }: Task
   };
 
   const submit = () => {
+    if (submitting.current) return;
     setSubmitted(true);
     const result = validateTaskInput(input);
     if (result.ok) {
+      submitting.current = true;
       onSubmit(result.value);
     } else {
       setErrors(result.errors);
@@ -71,7 +75,8 @@ export function TaskForm({ initial, today, submitLabel, header, onSubmit }: Task
         showsVerticalScrollIndicator={false}>
         {header}
         <TextField
-          label="Titre *"
+          label="Titre"
+          required
           placeholder="Que souhaitez-vous faire ?"
           value={input.title}
           onChangeText={(title) => update({ title })}

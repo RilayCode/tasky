@@ -103,6 +103,13 @@ Versions **vérifiées le 2026-10-20** via `npm view` (registre npm) et le templ
 - **Libellés accessibles uniques** : deux boutons « Effacer la recherche » à l'écran → TalkBack ambigu (et `getByRole` échoue). Les tests de parcours servent aussi d'audit d'accessibilité.
 - **Toast en haut d'écran** : en bas, il masquait le bouton flottant et les actions du détail.
 - **Icône** : générée par script Python/PIL à partir de Bricolage (« T » encre + point chartreuse sur ivoire), icône adaptative Android avec motif dans la zone sûre.
+- **Revue indépendante (agent) — corrections appliquées** :
+  - *Perte de données évitée* : une erreur de **lecture** du stockage (`io`) ne produit aucune copie de secours ; l'écran d'erreur propose alors uniquement « Réessayer » (`retryLoad`), et `startFresh` refuse d'écrire. Seules les données illisibles déjà copiées autorisent « Repartir de zéro ».
+  - Copie de secours dédoublonnée (`tasky:tasks:backup`) : une même donnée illisible n'est pas recopiée à chaque relance.
+  - Double appui : verrou dans `TaskForm` (pas de double création) et `usePressGuard` (une navigation par passage sur l'écran, verrou levé au retour du focus).
+  - Suppression depuis le détail : la tâche supprimée reste affichée pendant l'animation de sortie (plus de flash « Tâche introuvable »).
+  - Toast : durée adaptée au lecteur d'écran (`getRecommendedTimeoutMillis`, 12 s si TalkBack actif) ; une seule annonce.
+  - Accessibilité : libellés sans symboles (« Basse », « Titre, obligatoire »), voile des feuilles non focalisable, progression annoncée une seule fois, pluriels corrects, bouton « Retirer l'heure » à 48 dp.
 - **Clavier Android** : `KeyboardAvoidingView` (`height` sur Android, `padding` sur iOS) dans le formulaire. **À vérifier sur appareil** (edge-to-edge) : le bouton « Créer la tâche » doit rester visible clavier ouvert.
 
 ### Environnement cloud de Claude Code (limites connues)
@@ -138,7 +145,7 @@ Versions **vérifiées le 2026-10-20** via `npm view` (registre npm) et le templ
 ### Outils de test et de débogage
 - `npx tsc --noEmit` — vérification des types.
 - `npx expo lint` — ESLint (configuration Expo).
-- `npx jest` (preset `jest-expo`) — tests unitaires, de composants et parcours complets (74 tests à la phase 11).
+- `npx jest` (preset `jest-expo`) — tests unitaires, de composants et parcours complets (75 tests à la phase 11).
 - `npx expo-doctor` — cohérence des versions.
 - Débogage : React Native DevTools (touche `j` dans le terminal `npx expo start`), menu développeur sur l'appareil (secouer le téléphone).
 - Appareil réel Android via Expo Go ou development build (voir §F).

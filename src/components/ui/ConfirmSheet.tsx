@@ -44,8 +44,8 @@ export function ConfirmSheet({
       onRequestClose={onCancel}>
       <View style={styles.root}>
         <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Annuler"
+          accessible={false}
+          importantForAccessibility="no"
           onPress={onCancel}
           style={[StyleSheet.absoluteFill, { backgroundColor: colors.scrim }]}
         />

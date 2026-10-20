@@ -154,7 +154,6 @@ function PickerButton({
           accessibilityRole="button"
           accessibilityLabel="Retirer l’heure"
           onPress={onClear}
-          hitSlop={8}
           style={styles.clear}>
           <Icon name="x" size={16} color="textSecondary" />
         </Pressable>
@@ -195,6 +194,9 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   clear: {
-    paddingRight: spacing.md,
+    width: touchTarget,
+    height: touchTarget,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

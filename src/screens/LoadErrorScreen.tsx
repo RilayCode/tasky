@@ -7,10 +7,24 @@ import { Screen } from '@/components/ui/Screen';
 import { useTasks } from '@/features/tasks/TasksProvider';
 
 // Affiché à la place de l'app si les tâches enregistrées n'ont pas pu être lues.
-// Les données d'origine ont déjà été copiées sous une clé de secours.
 export function LoadErrorScreen() {
-  const { loadError, startFresh } = useTasks();
+  const { loadError, loadErrorKind, startFresh, retryLoad } = useTasks();
   const [confirm, setConfirm] = useState(false);
+
+  // Lecture impossible (erreur du stockage) : les données sont peut-être intactes
+  // et aucune copie n'existe. On ne propose QUE de réessayer.
+  if (loadErrorKind === 'io') {
+    return (
+      <Screen>
+        <EmptyState
+          numeral="!"
+          title={loadError ?? 'Vos tâches n’ont pas pu être chargées.'}
+          message="Vos données n’ont pas été modifiées. Réessayez ; si le problème persiste, redémarrez l’application.">
+          <Button label="Réessayer" icon="refresh-cw" onPress={retryLoad} />
+        </EmptyState>
+      </Screen>
+    );
+  }
 
   return (
     <Screen>

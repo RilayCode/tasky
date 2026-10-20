@@ -12,6 +12,7 @@ import { Screen } from '@/components/ui/Screen';
 import { computeProgress, selectTodayTasks, sortTasks } from '@/features/tasks/logic';
 import { useTasks } from '@/features/tasks/TasksProvider';
 import { useCompleteTask } from '@/hooks/useCompleteTask';
+import { usePressGuard } from '@/hooks/usePressGuard';
 import { useToday } from '@/hooks/useToday';
 import { capitalize, formatLongDate } from '@/lib/date';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -22,6 +23,7 @@ export function TodayScreen() {
   const { tasks, saveError } = useTasks();
   const today = useToday();
   const toggle = useCompleteTask();
+  const guard = usePressGuard();
   const todayTasks = sortTasks(selectTodayTasks(tasks, today), today);
   const progress = computeProgress(todayTasks);
   const dateLabel = capitalize(formatLongDate(today).replace(/ \d{4}$/, ''));
@@ -56,7 +58,7 @@ export function TodayScreen() {
                 : 'Profitez-en, ou avancez sur la suite de votre liste.'
             }>
             {tasks.length === 0 ? (
-              <Button label="Créer ma première tâche" icon="plus" onPress={() => router.push('/task/new')} />
+              <Button label="Créer ma première tâche" icon="plus" onPress={guard(() => router.push('/task/new'))} />
             ) : (
               <Button
                 label="Voir toutes les tâches"
@@ -80,7 +82,7 @@ export function TodayScreen() {
                   today={today}
                   animated
                   onToggle={(completed) => toggle(task, completed)}
-                  onPress={() => router.push({ pathname: '/task/[id]', params: { id: task.id } })}
+                  onPress={guard(() => router.push({ pathname: '/task/[id]', params: { id: task.id } }))}
                 />
               ))}
             </View>
@@ -93,8 +95,8 @@ export function TodayScreen() {
         )}
         <View style={styles.fabSpacer} />
       </Screen>
-      {todayTasks.length > 0 && (
-        <Fab icon="plus" accessibilityLabel="Nouvelle tâche" onPress={() => router.push('/task/new')} />
+      {tasks.length > 0 && (
+        <Fab icon="plus" accessibilityLabel="Nouvelle tâche" onPress={guard(() => router.push('/task/new'))} />
       )}
     </View>
   );

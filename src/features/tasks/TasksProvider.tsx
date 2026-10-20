@@ -8,9 +8,14 @@ import type { Task, TaskDraft } from './types';
 
 export type TasksStatus = 'loading' | 'ready' | 'error';
 
+// corrupted / unsupported-version : une copie de secours existe.
+// io : lecture impossible, AUCUNE copie : on propose de réessayer, jamais d'effacer.
+export type LoadErrorKind = 'corrupted' | 'unsupported-version' | 'io';
+
 interface TasksContextValue {
   status: TasksStatus;
   loadError: string | null;
+  loadErrorKind: LoadErrorKind | null;
   saveError: string | null;
   tasks: readonly Task[];
   addTask: (draft: TaskDraft) => Task;
@@ -21,6 +26,7 @@ interface TasksContextValue {
   clearTasks: () => void;
   replaceTasks: (tasks: readonly Task[]) => void;
   startFresh: () => void;
+  retryLoad: () => void;
 }
 
 const TasksContext = createContext<TasksContextValue | null>(null);
@@ -34,7 +40,8 @@ const LOAD_ERROR_MESSAGES = {
 export function TasksProvider({ children }: { children: ReactNode }) {
   const [tasks, dispatch] = useReducer(tasksReducer, []);
   const [status, setStatus] = useState<TasksStatus>('loading');
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadErrorKind, setLoadErrorKind] = useState<LoadErrorKind | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [saveError, setSaveError] = useState<string | null>(null);
   // Écritures en file : chaque sauvegarde attend la précédente (ordre garanti).
   const saveQueue = useRef<Promise<void>>(Promise.resolve());
@@ -46,24 +53,26 @@ export function TasksProvider({ children }: { children: ReactNode }) {
       .then((result) => {
         if (cancelled) return;
         if (result.ok) {
+          skipNextSave.current = true;
           dispatch({ type: 'hydrate', tasks: result.tasks });
+          setLoadErrorKind(null);
           setStatus('ready');
         } else {
           console.warn(`Tâches non chargées (${result.reason}), copie de secours : ${result.backupKey}`);
-          setLoadError(LOAD_ERROR_MESSAGES[result.reason]);
+          setLoadErrorKind(result.reason);
           setStatus('error');
         }
       })
       .catch((error: unknown) => {
         if (cancelled) return;
         console.warn('Lecture des tâches impossible :', error);
-        setLoadError(LOAD_ERROR_MESSAGES.io);
+        setLoadErrorKind('io');
         setStatus('error');
       });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [loadAttempt]);
 
   useEffect(() => {
     // Rien n'est écrit tant que le chargement n'a pas réussi : on n'écrase jamais
@@ -86,7 +95,8 @@ export function TasksProvider({ children }: { children: ReactNode }) {
 
   const value: TasksContextValue = {
     status,
-    loadError,
+    loadError: loadErrorKind ? LOAD_ERROR_MESSAGES[loadErrorKind] : null,
+    loadErrorKind,
     saveError,
     tasks,
     addTask: (draft) => {
@@ -104,12 +114,17 @@ export function TasksProvider({ children }: { children: ReactNode }) {
     restoreTask: (task) => dispatch({ type: 'restore', task }),
     clearTasks: () => dispatch({ type: 'clear' }),
     replaceTasks: (next) => dispatch({ type: 'hydrate', tasks: [...next] }),
-    // Après une erreur de lecture (données déjà mises de côté) : repartir d'une liste vide.
+    // Uniquement quand les données illisibles ont déjà été copiées de côté.
     startFresh: () => {
+      if (loadErrorKind === 'io') return;
       dispatch({ type: 'hydrate', tasks: [] });
       skipNextSave.current = false;
-      setLoadError(null);
+      setLoadErrorKind(null);
       setStatus('ready');
+    },
+    retryLoad: () => {
+      setStatus('loading');
+      setLoadAttempt((attempt) => attempt + 1);
     },
   };
 
